@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin - Employee Leave Management</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="min-h-screen bg-gradient-to-tr from-gray-900 via-red-800 to-yellow-600 text-white font-sans flex flex-col items-center">
+
+  <!-- Header -->
+  <header class="w-full bg-black/30 backdrop-blur-md py-4 shadow-md">
+    <h1 class="text-center text-3xl font-bold text-yellow-300">Admin Dashboard</h1>
+  </header>
+
+  <!-- Table Section -->
+  <main class="flex-1 w-full max-w-6xl mt-10 bg-white/10 backdrop-blur-lg rounded-2xl shadow-2xl p-8 animate-fadeIn">
+    <h2 class="text-2xl font-semibold text-yellow-300 mb-6 text-center">Employee Leave Requests</h2>
+
+    <div class="overflow-x-auto">
+      <table class="min-w-full border border-gray-300 text-black rounded-lg overflow-hidden shadow-lg">
+        <thead class="bg-yellow-400 text-black">
+          <tr>
+            <th class="py-3 px-4 text-center">ID</th>
+            <th class="py-3 px-4 text-center">Name</th>
+            <th class="py-3 px-4 text-center">Email</th>
+            <th class="py-3 px-4 text-center">Phone</th>
+            <th class="py-3 px-4 text-center">Reason</th>
+            <th class="py-3 px-4 text-center">ApplyDate</th>
+            <th class="py-3 px-4 text-center">Leave Status</th>
+            <th class="py-3 px-4 text-center">Action</th>
+          </tr>
+        </thead>
+        <tbody id="empdetail" class="bg-white"></tbody>
+      </table>
+    </div>
+  </main>
+
+  <script>
+  window.onload = function () {
+    const email = localStorage.getItem("adminEmail");
+    const password = localStorage.getItem("adminPassword");
+
+    if (email !== "admin@gmail.com" || password !== "admin@1234") {
+      document.body.innerHTML = "<h2 class='text-center text-red-500 mt-20 text-2xl'>Unauthorized Access</h2>";
+      return;
+    }
+
+    fetch("http://localhost:8080/adpage", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, password })
+    })
+    .then(res => {
+      if (!res.ok) throw new Error("Failed to fetch employee data");
+      return res.json();
+    })
+    .then(employees => {
+      const tableBody = document.getElementById("empdetail");
+
+      if (!employees || employees.length === 0 ) {
+        tableBody.innerHTML = `
+          <tr>
+            <td colspan="6" class="text-center py-4 text-gray-500">No employee leave requests found</td>
+          </tr>`;
+        return;
+      }
+
+      tableBody.innerHTML = employees.map(emp => {
+        let buttons = "";
+
+        if (emp.leavestatus === "Pending") {
+          buttons = `
+            <div class="flex justify-center space-x-2">
+              <button onclick="acceptLeave(${emp.id}, this)"
+                class="bg-green-600 hover:bg-green-500 text-white font-semibold px-3 py-1 rounded-lg transition">
+                Accept
+              </button>
+              <button onclick="rejectLeave(${emp.id}, this)"
+                class="bg-red-600 hover:bg-red-500 text-white font-semibold px-3 py-1 rounded-lg transition">
+                Reject
+              </button>
+            </div>`;
+          }
+        // } else if (emp.leavestatus === "Approved") {
+        //   buttons = `<span class="text-green-600 font-semibold">Approved</span>`;
+        // } else if (emp.leavestatus === "Rejected") {
+        //   buttons = `<span class="text-red-600 font-semibold">${emp.leavestatus}</span>`;
+        // } 
+          else {
+          buttons = `<span class="text-gray-500">${emp.leavestatus}</span>`;
+        }
+
+        return `
+          <tr class="border-b border-gray-200 hover:bg-gray-100 transition">
+            <td class="py-3 px-4 text-center">${emp.id}</td>
+            <td class="py-3 px-4 text-center">${emp.name}</td>
+            <td class="py-3 px-4 text-center">${emp.email}</td>
+            <td class="py-3 px-4 text-center">${emp.phonenumber}</td>
+            <td class="py-3 px-4 text-center">${emp.reason}</td>
+            <td class="py-3 px-4 text-center">${emp.applydate}</td>
+            <td class="py-3 px-4 text-center font-semibold ${emp.leavestatus === 'Approved' ? 'text-green-600' : emp.leavestatus === 'Rejected' ? 'text-red-600' : 'text-yellow-600'}">
+              ${emp.leavestatus}
+            </td>
+            <td class="py-3 px-4 text-center">${buttons}</td>
+          </tr>
+        `;
+      }).join("");
+    })
+    .catch(err => {
+      console.error("Error:", err);
+      alert("Unable to fetch employee data!");
+    });
+  };
+
+  function acceptLeave(empId, btn) {
+    if (!confirm("Approve this leave request?")) return;
+
+    fetch(`http://localhost:8080/adaccess/${empId}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" }
+    })
+    .then(res => {
+      if (!res.ok) throw new Error("Failed to approve leave");
+      return res.text();
+    })
+    .then(() => {
+      alert("Leave approved successfully!");
+      const row = btn.closest("tr");
+      row.querySelector("td:nth-child(7)").textContent = "Approved";
+      row.querySelector("td:nth-child(8)").className = "py-3 px-4 text-center font-semibold text-green-600";
+      row.querySelector("td:nth-child(8)").innerHTML = `<span class="text-green-600 font-semibold">Approved</span>`;
+    })
+    .catch(err => {
+      console.error("Error:", err);
+      alert("Error approving leave!");
+    });
+  }
+
+  function rejectLeave(empId, btn) {
+    if (!confirm("Reject this leave request?")) return;
+
+    fetch(`http://localhost:8080/adreject/${empId}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" }
+    })
+    .then(res => {
+      if (!res.ok) throw new Error("Failed to reject leave");
+      return res.text();
+    })
+    .then(() => {
+      alert("Leave rejected successfully!");
+      const row = btn.closest("tr");
+      row.querySelector("td:nth-child(7)").textContent = "Rejected";
+      row.querySelector("td:nth-child(7)").className = "py-3 px-4 text-center font-semibold text-red-600";
+      row.querySelector("td:nth-child(8)").innerHTML = `<span class="text-red-600 font-semibold">Rejected</span>`;
+    })
+    .catch(err => {
+      console.error("Error:", err);
+      alert("Error rejecting leave!");
+    });
+  }
+  </script>
+
+  <style>
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(-10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .animate-fadeIn {
+      animation: fadeIn 0.6s ease-in-out;
+    }
+  </style>
+
+</body>
+</html>

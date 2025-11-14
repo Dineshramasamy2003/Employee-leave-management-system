@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Employee Dashboard</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="min-h-screen flex bg-gradient-to-tr from-[#1a2a6c] via-[#b21f1f] to-[#fdbb2d] text-white font-sans">
+
+  <!-- Sidebar -->
+  <aside class="w-64 bg-black/30 backdrop-blur-md p-6">
+    <h2 class="text-2xl font-bold text-yellow-300 mb-8">Dashboard</h2>
+    <nav class="space-y-4">
+      <button id="detailsBtn" class="w-full text-left py-2 px-4 rounded-lg bg-yellow-400 text-black font-semibold hover:bg-yellow-300 transition">Employee Details</button>
+      <button id="historyBtn" class="w-full text-left py-2 px-4 rounded-lg bg-white/10 hover:bg-white/20 transition">Leave History</button>
+    </nav>
+  </aside>
+
+  <!-- Main Content -->
+  <main class="flex-1 flex flex-col items-center justify-center p-10">
+    <h1 class="text-3xl font-bold text-yellow-300 mb-8">Employee Portal</h1>
+
+    <!-- Employee Details Form -->
+    <section id="empDetails" class="bg-white/10 backdrop-blur-md p-8 rounded-2xl shadow-2xl w-full max-w-lg animate-fadeIn">
+      <form class="space-y-4 text-black">
+        <div>
+          <label class="block text-white font-medium">Employee ID</label>
+          <input id="empId" type="text" class="w-full p-2 rounded-md bg-white/80" readonly>
+        </div>
+        <div>
+          <label class="block text-white font-medium">Name</label>
+          <input id="empName" type="text" class="w-full p-2 rounded-md bg-white/80" readonly>
+        </div>
+        <div>
+          <label class="block text-white font-medium">Email</label>
+          <input id="empEmail" type="text" class="w-full p-2 rounded-md bg-white/80" readonly>
+        </div>
+        <div>
+          <label class="block text-white font-medium">Phone</label>
+          <input id="empPhone" type="text" class="w-full p-2 rounded-md bg-white/80" readonly>
+        </div>
+        <!-- <div>
+          <label class="block text-white font-medium">Leave Status</label>
+          <input id="empStatus" type="text" class="w-full p-2 rounded-md bg-white/80 font-semibold" readonly>
+        </div> -->
+
+        <div class="flex justify-center pt-4">
+          <button id="leave" type="button"
+            class="hidden bg-green-500 hover:bg-green-400 text-white font-semibold px-6 py-3 rounded-lg transition-transform transform hover:scale-105 disabled:bg-gray-400 disabled:cursor-not-allowed">
+            Apply Leave
+          </button>
+        </div>
+      </form>
+    </section>
+
+    <!-- Leave History Section -->
+    <section id="leaveHistory" class="hidden bg-white/10 backdrop-blur-md p-8 rounded-2xl shadow-2xl w-full max-w-lg animate-fadeIn">
+      <h2 class="text-2xl font-semibold text-yellow-300 mb-4 text-center">Leave History</h2>
+      <div id="historyList" class="space-y-3 text-black bg-white p-4 rounded-lg">
+        <p class="text-center text-gray-600">No leave records found</p>
+      </div>
+    </section>
+  </main>
+
+  <!-- Leave Apply Modal -->
+  <div id="leaveModal" class="hidden fixed inset-0 bg-black/60 flex items-center justify-center z-50">
+    <div class="bg-white text-black rounded-xl shadow-lg w-11/12 max-w-md p-6 animate-fadeIn">
+      <h2 class="text-2xl font-semibold mb-4 text-center text-blue-600">Apply for Leave</h2>
+      <form id="leaveForm" class="space-y-4">
+        <div>
+          <label class="block mb-1 font-medium">Reason for Leave</label>
+          <textarea id="leaveReason" class="w-full p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400" rows="3" required></textarea>
+        </div>
+        <div>
+          <label class="block mb-1 font-medium">Leave Date</label>
+          <input type="date" id="leaveDate" class="w-full p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400" required />
+        </div>
+        <div class="flex justify-between mt-6">
+          <button type="button" id="cancelModal"
+            class="bg-gray-400 hover:bg-gray-500 text-white px-4 py-2 rounded-lg transition">Cancel</button>
+          <button type="submit"
+            class="bg-green-600 hover:bg-green-500 text-white px-4 py-2 rounded-lg transition">Submit</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script>
+    const detailsSection = document.getElementById("empDetails");
+    const historySection = document.getElementById("leaveHistory");
+    const detailsBtn = document.getElementById("detailsBtn");
+    const historyBtn = document.getElementById("historyBtn");
+    const leaveButton = document.getElementById("leave");
+    const modal = document.getElementById("leaveModal");
+    const cancelBtn = document.getElementById("cancelModal");
+    const leaveForm = document.getElementById("leaveForm");
+
+    detailsBtn.addEventListener("click", () => {
+      detailsSection.classList.remove("hidden");
+      historySection.classList.add("hidden");
+      detailsBtn.classList.add("bg-yellow-400", "text-black");
+      historyBtn.classList.remove("bg-yellow-400", "text-black");
+    });
+
+    historyBtn.addEventListener("click", () => {
+      historySection.classList.remove("hidden");
+      detailsSection.classList.add("hidden");
+      historyBtn.classList.add("bg-yellow-400", "text-black");
+      detailsBtn.classList.remove("bg-yellow-400", "text-black");
+      loadLeaveHistory();
+    });
+
+    // Load Employee Details
+    window.onload = function () {
+      const email = localStorage.getItem("userEmail");
+      const password = localStorage.getItem("userPassword");
+      if (email && password) {
+        fetch("http://localhost:8080/empdetail", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email, password })
+        })
+          .then(res => res.json())
+          .then(emp => {
+            document.getElementById("empId").value = emp.id;
+            document.getElementById("empName").value = emp.name;
+            document.getElementById("empEmail").value = emp.email;
+            document.getElementById("empPhone").value = emp.phonenumber;
+            //document.getElementById("empStatus").value = emp.leavestatus;
+
+            leaveButton.classList.remove("hidden");
+            // if (emp.leavestatus.toUpperCase() !== "NA") {
+            //   //leaveButton.disabled = true;
+            //   //leaveButton.textContent = "Leave Already Applied";
+            // }
+          });
+      }
+    };
+
+    // Leave Modal
+    leaveButton.addEventListener("click", () => modal.classList.remove("hidden"));
+    cancelBtn.addEventListener("click", () => modal.classList.add("hidden"));
+
+    // Apply Leave and Send Data to Backend
+    leaveForm.addEventListener("submit", e => {
+      e.preventDefault();
+      const email = localStorage.getItem("userEmail");
+      const reason = document.getElementById("leaveReason").value;
+      const date = document.getElementById("leaveDate").value;
+
+      fetch("http://localhost:8080/leave/apply", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, reason, applydate: date })
+      })
+        .then(res => res.text())
+        .then(() => {
+          alert("Leave Applied Successfully!");
+          modal.classList.add("hidden");
+          //document.getElementById("empStatus").value = "Pending";
+          //leaveButton.disabled = true;
+          //leaveButton.textContent = "Leave Applied";
+          loadLeaveHistory(); // refresh history
+        });
+    });
+
+    // Load Leave History (Email, Reason, Apply Date, Approve Date)
+   function loadLeaveHistory() {
+  const email = localStorage.getItem("userEmail");
+
+  fetch("http://localhost:8080/leave/history", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email }) // Send email to backend
+  })
+    .then(res => res.json())
+    .then(emp => {
+      const list = document.getElementById("historyList");
+      list.innerHTML = "";
+
+      if (!emp || !emp.email || emp.leavestatus=="NA") {
+        list.innerHTML = `<p class="text-center text-gray-600">No leave records found</p>`;
+      } else {
+        list.innerHTML = `
+          <div class="border border-gray-300 p-4 rounded-md bg-white/90 shadow-sm">
+            <p><strong>Name:</strong> ${emp.name}</p>
+            <p><strong>Email:</strong> ${emp.email}</p>
+            <p><strong>Reason:</strong> ${emp.reason }</p>
+            <p><strong>Applied Date:</strong> ${emp.applydate}</p>
+            <p><strong>Status:</strong> ${emp.leavestatus}</p>
+          </div>`;
+      }
+    })
+    .catch(err => {
+      console.error("Error loading leave history:", err);
+      document.getElementById("historyList").innerHTML =
+        `<p class="text-center text-red-500">Failed to load leave history.</p>`;
+    });
+}
+
+  </script>
+
+  <style>
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(-10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .animate-fadeIn {
+      animation: fadeIn 0.5s ease-in-out;
+    }
+  </style>
+</body>
+</html>
